@@ -11,7 +11,8 @@ export class RecognitionService {
 
   private readonly AUDIOS_PATH = 'audios';
   private readonly TRANSCRIPTIONS_PATH = 'transcriptions';
-  private readonly IASMIN_URL = this.configService.get('IASMIN_URL');
+  private readonly IASMIN_PABX_URL = this.configService.get('IASMIN_PABX_URL');
+  private readonly IASMIN_BACKEND_URL = this.configService.get('IASMIN_BACKEND_URL');
   private readonly WHISPER_COMMAND = this.configService.get('WHISPER_COMMAND');
 
   start(recognitionDto: RecognitionDto) {
@@ -22,7 +23,7 @@ export class RecognitionService {
     const audioName = recognitionDto.record + '.mp3';
     const request = await axios({
       method: 'get',
-      url: `${this.IASMIN_URL}/${audioName}`,
+      url: `${this.IASMIN_PABX_URL}/${audioName}`,
       responseType: 'stream',
     })
     const writer = fs.createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
@@ -34,7 +35,7 @@ export class RecognitionService {
     });
 
     writer.on('error', (err) => {
-      console.log('erro ao baixar audio', recognitionDto, err);
+      console.log('erro ao baixar audio', recognitionDto, err.message);
     });
   }
 
@@ -65,7 +66,7 @@ export class RecognitionService {
   }
 
   private notifyIASMIN(recognitionDto: RecognitionDto, audioName: string) {
-    axios.post(`${this.IASMIN_URL}/transcription`, {
+    axios.post(`${this.IASMIN_BACKEND_URL}/recognitions`, {
       record: recognitionDto.record,
       transcription: JSON.parse(fs.readFileSync(`${this.TRANSCRIPTIONS_PATH}/${recognitionDto.record}.json`, 'utf8')),
     })
@@ -73,7 +74,7 @@ export class RecognitionService {
         this.deleteAudioAndTranscription(audioName);
       })
       .catch((err) => {
-        console.log('erro ao notificar IASMIN', err);
+        console.log('erro ao notificar IASMIN', err.message);
       })
   }
 
