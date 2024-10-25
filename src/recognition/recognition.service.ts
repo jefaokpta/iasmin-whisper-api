@@ -20,7 +20,7 @@ export class RecognitionService {
   }
 
   private async downloadAudio(recognitionDto: RecognitionDto) {
-    const audioName = recognitionDto.record + '.mp3';
+    const audioName = recognitionDto.callRecord + '.mp3';
     const request = await axios({
       method: 'get',
       url: `${this.IASMIN_PABX_URL}/${audioName}`,
@@ -67,8 +67,8 @@ export class RecognitionService {
 
   private notifyIASMIN(recognitionDto: RecognitionDto, audioName: string) {
     axios.post(`${this.IASMIN_BACKEND_URL}/recognitions`, {
-      record: recognitionDto.record,
-      transcription: JSON.parse(fs.readFileSync(`${this.TRANSCRIPTIONS_PATH}/${recognitionDto.record}.json`, 'utf8')),
+      record: recognitionDto.callRecord,
+      transcription: JSON.parse(fs.readFileSync(`${this.TRANSCRIPTIONS_PATH}/${recognitionDto.callRecord}.json`, 'utf8')),
     })
       .then(() => {
         this.deleteAudioAndTranscription(audioName);

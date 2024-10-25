@@ -5,6 +5,6 @@ export class RecognitionDto {
   readonly id: number;
 
   @IsNotEmpty()
-  readonly record: string;
+  readonly callRecord: string;
 
 }
