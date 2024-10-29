@@ -1,0 +1,15 @@
+[Unit]
+Description=Api Nestjs q usa o whisper para transcrever audios
+After=network.target
+
+
+[Service]
+StandardOutput=file:/var/log/iasmin-whisper.log
+#StandardOutput=null
+WorkingDirectory=/opt/iasmin-whisper-api
+ExecStart=npm run start:prod
+Restart=always
+RestartSec=300s
+
+[Install]
+WantedBy=multi-user.target
