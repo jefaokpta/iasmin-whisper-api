@@ -72,7 +72,7 @@ export class RecognitionService {
   private notifyIASMIN(recognitionDto: RecognitionDto, audioName: string) {
     axios.post(`${this.IASMIN_BACKEND_URL}/recognitions`, {
       id: recognitionDto.id,
-      createRecognitionDto: JSON.parse(fs.readFileSync(`${this.TRANSCRIPTIONS_PATH}/${recognitionDto.callRecord}.json`, 'utf8')),
+      createRecognitionDto: JSON.parse(fs.readFileSync(`${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.mp3', '.json')}`, 'utf8')),
     })
       .then(() => {
         this.deleteAudioAndTranscription(audioName);
