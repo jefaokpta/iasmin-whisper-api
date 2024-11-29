@@ -3,7 +3,7 @@ import { RecognitionDto } from './dto/recognition.dto';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import * as fs from 'node:fs';
-import {spawn} from 'child_process';
+import {spawn} from 'node:child_process';
 
 @Injectable()
 export class RecognitionService {
@@ -20,23 +20,27 @@ export class RecognitionService {
   }
 
   private async downloadAudio(recognitionDto: RecognitionDto) {
-    const audioName = recognitionDto.callRecord + '.mp3';
-    const request = await axios({
-      method: 'get',
-      url: `${this.IASMIN_PABX_URL}/${audioName}`,
-      responseType: 'stream',
-    })
-    const writer = fs.createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
-    request.data.pipe(writer);
+    try {
+      const audioName = recognitionDto.callRecord;
+      const request = await axios({
+        method: 'get',
+        url: `${this.IASMIN_PABX_URL}/${audioName}`,
+        responseType: 'stream',
+      })
+      const writer = fs.createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
+      request.data.pipe(writer);
 
-    writer.on('finish', () => {
-      console.log('audio baixado');
-      this.processRecognition(recognitionDto, audioName);
-    });
+      writer.on('finish', () => {
+        console.log('audio baixado');
+        this.processRecognition(recognitionDto, audioName);
+      });
 
-    writer.on('error', (err) => {
-      console.log('erro ao baixar audio', recognitionDto, err.message);
-    });
+      writer.on('error', (err) => {
+        console.log('erro ao baixar audio', recognitionDto, err.message);
+      });
+    } catch (err) {
+      console.log('erro ao baixar audio', recognitionDto, err)
+    }
   }
 
   private processRecognition(recognitionDto: RecognitionDto, audioName: string) {
