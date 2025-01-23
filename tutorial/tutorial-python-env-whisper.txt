@@ -1,0 +1,6 @@
+python3 -m venv venv
+source venv/bin/activate
+pip3 install --upgrade pip
+pip3 install git+https://github.com/openai/whisper.git
+venv/bin/whisper -h
+venv/bin/whisper desculpa.ogg --model=large --language=pt --fp16=False --beam_size=5 --patience=2 --output_format=json
