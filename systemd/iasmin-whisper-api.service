@@ -4,7 +4,7 @@ After=network.target
 
 
 [Service]
-StandardOutput=file:/var/log/iasmin-whisper.log
+StandardOutput=file:/var/log/iasmin-whisper-api.log
 #StandardOutput=null
 WorkingDirectory=/opt/iasmin-whisper-api
 ExecStart=npm run start:prod
