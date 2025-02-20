@@ -1,7 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { KafkaService } from './kafka.service';
-import { MessagePattern } from '@nestjs/microservices';
-import { Payload } from '@nestjs/microservices';
+import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CreateKafkaDto } from './dto/create-kafka.dto';
 import { UpdateKafkaDto } from './dto/update-kafka.dto';
 
