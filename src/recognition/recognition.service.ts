@@ -31,15 +31,15 @@ export class RecognitionService {
       request.data.pipe(writer);
 
       writer.on('finish', async () => {
-        Logger.log('downloadAudio', 'audio baixado', cdr.callRecord);
+        Logger.log('audio baixado', cdr.callRecord, 'downloadAudio');
         await this.processRecognition(cdr, audioName);
       });
 
       writer.on('error', (err) => {
-        Logger.error('downloadAudio', 'erro ao baixar audio', cdr.callRecord, err.message);
+        Logger.error('erro ao baixar audio', cdr.callRecord, err.message, 'downloadAudio');
       });
     } catch (err) {
-      Logger.error('downloadAudio', 'erro ao baixar audio', cdr.callRecord, err.message);
+      Logger.error('erro ao baixar audio', cdr.callRecord, err.message, 'downloadAudio');
     }
   }
 
@@ -60,10 +60,10 @@ export class RecognitionService {
 
     const result = spawnSync(command, { shell: true })
     if (result.status === 0) {
-      Logger.log('processRecognition', 'transcricao finalizada com sucesso', cdr);
+      Logger.log('transcricao finalizada com sucesso', cdr.callRecord, 'processRecognition');
       this.notifyIASMIN(cdr, audioName);
     } else {
-      Logger.error('processRecognition', 'erro na transcricao', cdr);
+      Logger.error('erro na transcricao', cdr.callRecord, 'processRecognition');
     }
   }
 
@@ -78,19 +78,19 @@ export class RecognitionService {
         this.deleteAudioAndTranscription(audioName);
       })
       .catch((err) => {
-        Logger.error('notifyIASMIN', 'error', cdr.id, err.message);
+        Logger.error('erro ao notificar IASMIN', cdr.callRecord, err.message, 'notifyIASMIN');
       })
   }
 
   private deleteAudioAndTranscription(audioName: string) {
     fs.unlink(this.AUDIOS_PATH + '/' + audioName, (err) => {
       if (err) {
-        Logger.error('deleteAudioAndTranscription', 'error', audioName, err);
+        Logger.error('erro ao deletar audio', audioName, err, 'deleteAudioAndTranscription');
       }
     });
     fs.unlink(this.TRANSCRIPTIONS_PATH + '/' + audioName.replace('.mp3', '.json'), (err) => {
       if (err) {
-        Logger.error('deleteAudioAndTranscription', 'error', audioName, err);
+        Logger.error('erro ao deletar transcrição', audioName, err, 'deleteAudioAndTranscription');
       }
     });
   }
