@@ -1,10 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { RecognitionDto } from './dto/recognition.dto';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import * as fs from 'node:fs';
-import {spawn} from 'node:child_process';
-
+import {spawnSync} from 'node:child_process';
+import { Cdr } from '../model/cdr';
 @Injectable()
 export class RecognitionService {
   constructor(private readonly configService: ConfigService) {}
@@ -14,14 +13,15 @@ export class RecognitionService {
   private readonly IASMIN_PABX_URL = this.configService.get('IASMIN_PABX_URL');
   private readonly IASMIN_BACKEND_URL = this.configService.get('IASMIN_BACKEND_URL');
   private readonly WHISPER_COMMAND = this.configService.get('WHISPER_COMMAND');
+  private readonly REQUEST_TIMEOUT = 20000;
 
-  start(recognitionDto: RecognitionDto) {
-    this.downloadAudio(recognitionDto);
+  async start(cdr: Cdr) {
+    await this.downloadAudio(cdr);
   }
 
-  private async downloadAudio(recognitionDto: RecognitionDto) {
+  private async downloadAudio(cdr: Cdr) {
     try {
-      const audioName = recognitionDto.callRecord;
+      const audioName = cdr.callRecord;
       const request = await axios({
         method: 'get',
         url: `${this.IASMIN_PABX_URL}/${audioName}`,
@@ -30,20 +30,20 @@ export class RecognitionService {
       const writer = fs.createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
       request.data.pipe(writer);
 
-      writer.on('finish', () => {
+      writer.on('finish', async () => {
         console.log('audio baixado');
-        this.processRecognition(recognitionDto, audioName);
+        await this.processRecognition(cdr, audioName);
       });
 
       writer.on('error', (err) => {
-        console.log('erro ao baixar audio', recognitionDto, err.message);
+        console.log('erro ao baixar audio', cdr, err.message);
       });
     } catch (err) {
-      console.log('erro ao baixar audio', recognitionDto, err)
+      console.log('erro ao baixar audio', cdr, err)
     }
   }
 
-  private processRecognition(recognitionDto: RecognitionDto, audioName: string) {
+  private async processRecognition(cdr: Cdr, audioName: string) {
     const command =
       this.WHISPER_COMMAND +
       ' ' +
@@ -58,21 +58,21 @@ export class RecognitionService {
       '--output_format=json ' +
       `--output_dir=${this.TRANSCRIPTIONS_PATH}`
 
-    spawn(command, { shell: true })
-      .on('exit', (code) => {
-        if (code === 0) {
-          console.log('transcricao finalizada');
-          this.notifyIASMIN(recognitionDto, audioName);
-        } else {
-          console.log('DEU RUIM NA TRANSCRICAO', code);
-        }
-      })
+    const result = spawnSync(command, { shell: true })
+    if (result.status === 0) {
+      Logger.log('transcricao finalizada com sucesso', cdr, audioName);
+      this.notifyIASMIN(cdr, audioName);
+    } else {
+      Logger.error('DEU RUIM NA TRANSCRICAO', result.status);
+    }
   }
 
-  private notifyIASMIN(recognitionDto: RecognitionDto, audioName: string) {
+  private notifyIASMIN(cdr: Cdr, audioName: string) {
     axios.post(`${this.IASMIN_BACKEND_URL}/recognitions`, {
-      id: recognitionDto.id,
+      id: cdr.id,
       createRecognitionDto: JSON.parse(fs.readFileSync(`${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.mp3', '.json')}`, 'utf8')),
+    }, {
+      timeout: this.REQUEST_TIMEOUT,
     })
       .then(() => {
         this.deleteAudioAndTranscription(audioName);

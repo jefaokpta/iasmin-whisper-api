@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
-import { KafkaService } from './kafka.service';
 import { KafkaController } from './kafka.controller';
-
+import { RecognitionModule } from '../recognition/recognition.module';
 @Module({
+  imports: [RecognitionModule],
   controllers: [KafkaController],
-  providers: [KafkaService],
 })
 export class KafkaModule {}

@@ -2,9 +2,11 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
@@ -16,17 +18,16 @@ async function bootstrap() {
     transport: Transport.KAFKA,
     options: {
       client: {
-        clientId: 'whisper-api',
-        brokers: [process.env.KAFKA_BROKER_URL ?? '192.168.15.212:9094'],
+        clientId: 'iasmin-whisper-api',
+        brokers: [configService.get('VEIA_KAFKA_BROKER') ?? 'localhost:9094'],
       },
       consumer: {
-        groupId: 'whisper-api-consumer',
+        groupId: 'iasmin-whisper-api-consumer',
       },
     },
   });
 
   await app.startAllMicroservices();
-
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(configService.get('PORT') ?? 3000);
 }
 bootstrap();
