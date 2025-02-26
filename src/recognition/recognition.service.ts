@@ -13,7 +13,7 @@ export class RecognitionService {
   private readonly IASMIN_PABX_URL = this.configService.get('IASMIN_PABX_URL');
   private readonly IASMIN_BACKEND_URL = this.configService.get('IASMIN_BACKEND_URL');
   private readonly WHISPER_COMMAND = this.configService.get('WHISPER_COMMAND');
-  private readonly REQUEST_TIMEOUT = 60000; // 1 minuto
+  private readonly REQUEST_TIMEOUT = 10000; // 1 minuto
 
   async start(cdr: Cdr) {
     await this.downloadAudio(cdr);
@@ -22,6 +22,11 @@ export class RecognitionService {
   private async downloadAudio(cdr: Cdr) {
     try {
       const audioName = cdr.callRecord;
+      if (fs.existsSync(`${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.mp3', '.json')}`)) {
+        Logger.log('transcricao ja existe', cdr.callRecord, 'downloadAudio');
+        await this.notifyIASMIN(cdr, audioName);
+        return;
+      }
       const request = await axios({
         method: 'get',
         url: `${this.IASMIN_PABX_URL}/${audioName}`,
@@ -61,25 +66,25 @@ export class RecognitionService {
     const result = spawnSync(command, { shell: true })
     if (result.status === 0) {
       Logger.log('transcricao finalizada com sucesso', cdr.callRecord, 'processRecognition');
-      this.notifyIASMIN(cdr, audioName);
+      await this.notifyIASMIN(cdr, audioName);
     } else {
       Logger.error('erro na transcricao', cdr.callRecord, 'processRecognition');
     }
   }
 
-  private notifyIASMIN(cdr: Cdr, audioName: string) {
-    axios.post(`${this.IASMIN_BACKEND_URL}/recognitions`, {
-      id: cdr.id,
+  private async notifyIASMIN(cdr: Cdr, audioName: string) {
+    Logger.log('notificando IASMIN', cdr.callRecord, 'notifyIASMIN');
+    try {
+      await axios.post(`${this.IASMIN_BACKEND_URL}/recognitions`, {
+        id: cdr.id,
       createRecognitionDto: JSON.parse(fs.readFileSync(`${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.mp3', '.json')}`, 'utf8')),
-    }, {
-      timeout: this.REQUEST_TIMEOUT,
-    })
-      .then(() => {
-        this.deleteAudioAndTranscription(audioName);
+      }, {
+        timeout: this.REQUEST_TIMEOUT,
       })
-      .catch((err) => {
-        Logger.error('erro ao notificar IASMIN', cdr.callRecord, err.message, 'notifyIASMIN');
-      })
+      this.deleteAudioAndTranscription(audioName);
+    } catch (err) {
+      Logger.error('erro ao notificar IASMIN', cdr.callRecord, err.message, 'notifyIASMIN');
+    }
   }
 
   private deleteAudioAndTranscription(audioName: string) {
