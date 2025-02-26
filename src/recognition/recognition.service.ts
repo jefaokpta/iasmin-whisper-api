@@ -23,7 +23,7 @@ export class RecognitionService {
     try {
       const audioName = cdr.callRecord;
       if (fs.existsSync(`${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.mp3', '.json')}`)) {
-        Logger.log('transcricao ja existe', cdr.callRecord, 'downloadAudio');
+        Logger.log(`transcricao ja existe ${cdr.callRecord}`, 'downloadAudio');
         await this.notifyIASMIN(cdr, audioName);
         return;
       }
@@ -36,15 +36,15 @@ export class RecognitionService {
       request.data.pipe(writer);
 
       writer.on('finish', async () => {
-        Logger.log('audio baixado', cdr.callRecord, 'downloadAudio');
+        Logger.log(`audio baixado ${cdr.callRecord}`, 'downloadAudio');
         await this.processRecognition(cdr, audioName);
       });
 
       writer.on('error', (err) => {
-        Logger.error('erro ao baixar audio', cdr.callRecord, err.message, 'downloadAudio');
+        Logger.error(`erro ao baixar audio ${cdr.callRecord}`, err.message, 'downloadAudio');
       });
     } catch (err) {
-      Logger.error('erro ao baixar audio', cdr.callRecord, err.message, 'downloadAudio');
+      Logger.error(`erro ao baixar audio ${cdr.callRecord}`, err.message, 'downloadAudio');
     }
   }
 
@@ -65,15 +65,15 @@ export class RecognitionService {
 
     const result = spawnSync(command, { shell: true })
     if (result.status === 0) {
-      Logger.log('transcricao finalizada com sucesso', cdr.callRecord, 'processRecognition');
+      Logger.log(`transcricao finalizada com sucesso ${cdr.callRecord}`, 'processRecognition');
       await this.notifyIASMIN(cdr, audioName);
     } else {
-      Logger.error('erro na transcricao', cdr.callRecord, 'processRecognition');
+      Logger.error(`erro na transcricao ${cdr.callRecord}`, 'processRecognition');
     }
   }
 
   private async notifyIASMIN(cdr: Cdr, audioName: string) {
-    Logger.log('notificando IASMIN', cdr.callRecord, 'notifyIASMIN');
+    Logger.log(`notificando IASMIN ${cdr.callRecord}`, 'notifyIASMIN');
     try {
       await axios.post(`${this.IASMIN_BACKEND_URL}/recognitions`, {
         id: cdr.id,
@@ -83,19 +83,19 @@ export class RecognitionService {
       })
       this.deleteAudioAndTranscription(audioName);
     } catch (err) {
-      Logger.error('erro ao notificar IASMIN', cdr.callRecord, err.message, 'notifyIASMIN');
+      Logger.error(`erro ao notificar IASMIN ${cdr.callRecord}`, err.message, 'notifyIASMIN');
     }
   }
 
   private deleteAudioAndTranscription(audioName: string) {
     fs.unlink(this.AUDIOS_PATH + '/' + audioName, (err) => {
       if (err) {
-        Logger.error('erro ao deletar audio', audioName, err, 'deleteAudioAndTranscription');
+        Logger.error(`erro ao deletar audio ${audioName}`, err, 'deleteAudioAndTranscription');
       }
     });
     fs.unlink(this.TRANSCRIPTIONS_PATH + '/' + audioName.replace('.mp3', '.json'), (err) => {
       if (err) {
-        Logger.error('erro ao deletar transcrição', audioName, err, 'deleteAudioAndTranscription');
+        Logger.error(`erro ao deletar transcrição ${audioName}`, err, 'deleteAudioAndTranscription');
       }
     });
   }
