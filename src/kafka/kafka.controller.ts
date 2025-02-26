@@ -8,8 +8,8 @@ export class KafkaController {
 
 
   @MessagePattern('transcriptions')
-  consume(@Payload() cdr: Cdr) {
-      this.recognitionService.start(cdr);
+  async consume(@Payload() cdr: Cdr) {
+      await this.recognitionService.start(cdr);
   }
     
 }

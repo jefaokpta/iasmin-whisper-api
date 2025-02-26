@@ -13,7 +13,7 @@ export class RecognitionService {
   private readonly IASMIN_PABX_URL = this.configService.get('IASMIN_PABX_URL');
   private readonly IASMIN_BACKEND_URL = this.configService.get('IASMIN_BACKEND_URL');
   private readonly WHISPER_COMMAND = this.configService.get('WHISPER_COMMAND');
-  private readonly REQUEST_TIMEOUT = 20000;
+  private readonly REQUEST_TIMEOUT = 60000; // 1 minuto
 
   async start(cdr: Cdr) {
     await this.downloadAudio(cdr);
@@ -31,15 +31,15 @@ export class RecognitionService {
       request.data.pipe(writer);
 
       writer.on('finish', async () => {
-        console.log('audio baixado');
+        Logger.log('downloadAudio', 'audio baixado', cdr.callRecord);
         await this.processRecognition(cdr, audioName);
       });
 
       writer.on('error', (err) => {
-        console.log('erro ao baixar audio', cdr, err.message);
+        Logger.error('downloadAudio', 'erro ao baixar audio', cdr.callRecord, err.message);
       });
     } catch (err) {
-      console.log('erro ao baixar audio', cdr, err)
+      Logger.error('downloadAudio', 'erro ao baixar audio', cdr.callRecord, err.message);
     }
   }
 
@@ -60,10 +60,10 @@ export class RecognitionService {
 
     const result = spawnSync(command, { shell: true })
     if (result.status === 0) {
-      Logger.log('transcricao finalizada com sucesso', cdr, audioName);
+      Logger.log('processRecognition', 'transcricao finalizada com sucesso', cdr);
       this.notifyIASMIN(cdr, audioName);
     } else {
-      Logger.error('DEU RUIM NA TRANSCRICAO', result.status);
+      Logger.error('processRecognition', 'erro na transcricao', cdr);
     }
   }
 
@@ -78,19 +78,19 @@ export class RecognitionService {
         this.deleteAudioAndTranscription(audioName);
       })
       .catch((err) => {
-        console.log('erro ao notificar IASMIN', err.message);
+        Logger.error('notifyIASMIN', 'error', cdr.id, err.message);
       })
   }
 
   private deleteAudioAndTranscription(audioName: string) {
     fs.unlink(this.AUDIOS_PATH + '/' + audioName, (err) => {
       if (err) {
-        console.error('erro ao deletar audio', audioName, err);
+        Logger.error('deleteAudioAndTranscription', 'error', audioName, err);
       }
     });
     fs.unlink(this.TRANSCRIPTIONS_PATH + '/' + audioName.replace('.mp3', '.json'), (err) => {
       if (err) {
-        console.error('erro ao deletar transcrição', audioName, err);
+        Logger.error('deleteAudioAndTranscription', 'error', audioName, err);
       }
     });
   }
