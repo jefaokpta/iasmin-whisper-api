@@ -13,7 +13,7 @@ export class RecognitionService {
   private readonly IASMIN_PABX_URL = this.configService.get('IASMIN_PABX_URL');
   private readonly IASMIN_BACKEND_URL = this.configService.get('IASMIN_BACKEND_URL');
   private readonly WHISPER_COMMAND = this.configService.get('WHISPER_COMMAND');
-  private readonly REQUEST_TIMEOUT = 10000; // 1 minuto
+  private readonly REQUEST_TIMEOUT = 60000; // 1 minuto
 
   async start(cdr: Cdr) {
     await this.downloadAudio(cdr);
