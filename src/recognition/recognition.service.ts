@@ -23,8 +23,8 @@ export class RecognitionService {
   }
 
   private async downloadAudio(cdr: Cdr) {
+    const audioName = cdr.uniqueId.replace('.', '_').concat('-a.sln');
     try {
-      const audioName = cdr.uniqueId.replace('.', '_').concat('-a.sln');
       const request = await axios({
         method: 'get',
         url: `${this.IASMIN_PABX_URL}/${audioName}`,
@@ -35,7 +35,7 @@ export class RecognitionService {
 
       writer.on('finish', async () => {
         this.logger.log(`audio baixado ${audioName}`);
-        await this.processRecognition(cdr, audioName);
+        await this.processRecognition(audioName);
         await this.notifyTranscriptionToBackend(cdr, audioName);
         this.deleteAudioAndTranscription(audioName);
       });
@@ -47,7 +47,7 @@ export class RecognitionService {
         );
       });
     } catch (err) {
-      this.logger.error(`Erro ao baixar audio ${cdr.uniqueId}`, err.message);
+      this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
     }
   }
 
