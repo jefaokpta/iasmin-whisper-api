@@ -23,7 +23,7 @@ export class RecognitionService {
   }
 
   private async downloadAudio(cdr: Cdr) {
-    const audioName = cdr.uniqueId.replace('.', '_').concat('-a.sln');
+    const audioName = cdr.uniqueId.replace('.', '-').concat('-a.sln');
     try {
       const request = await axios({
         method: 'get',
