@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import * as fs from 'node:fs';
-import {spawnSync} from 'node:child_process';
+import { spawnSync } from 'node:child_process';
+import { createWriteStream, readFileSync, unlink } from 'node:fs';
 import { Cdr } from '../model/cdr';
+
 @Injectable()
 export class RecognitionService {
   constructor(private readonly configService: ConfigService) {}
@@ -11,9 +12,11 @@ export class RecognitionService {
   private readonly AUDIOS_PATH = 'audios';
   private readonly TRANSCRIPTIONS_PATH = 'transcriptions';
   private readonly IASMIN_PABX_URL = this.configService.get('IASMIN_PABX_URL');
-  private readonly IASMIN_BACKEND_URL = this.configService.get('IASMIN_BACKEND_URL');
+  private readonly IASMIN_BACKEND_URL =
+    this.configService.get('IASMIN_BACKEND_URL');
   private readonly WHISPER_COMMAND = this.configService.get('WHISPER_COMMAND');
   private readonly REQUEST_TIMEOUT = 60000; // 1 minuto
+  private readonly logger = new Logger(RecognitionService.name);
 
   async start(cdr: Cdr) {
     await this.downloadAudio(cdr);
@@ -21,34 +24,34 @@ export class RecognitionService {
 
   private async downloadAudio(cdr: Cdr) {
     try {
-      const audioName = cdr.callRecord;
-      if (fs.existsSync(`${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.mp3', '.json')}`)) {
-        Logger.log(`transcricao ja existe ${cdr.callRecord}`, 'downloadAudio');
-        await this.notifyIASMIN(cdr, audioName);
-        return;
-      }
+      const audioName = cdr.uniqueId.replace('.', '_').concat('-a.sln');
       const request = await axios({
         method: 'get',
         url: `${this.IASMIN_PABX_URL}/${audioName}`,
         responseType: 'stream',
-      })
-      const writer = fs.createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
+      });
+      const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
       request.data.pipe(writer);
 
       writer.on('finish', async () => {
-        Logger.log(`audio baixado ${cdr.callRecord}`, 'downloadAudio');
+        this.logger.log(`audio baixado ${audioName}`);
         await this.processRecognition(cdr, audioName);
+        await this.notifyTranscriptionToBackend(cdr, audioName);
+        this.deleteAudioAndTranscription(audioName);
       });
 
       writer.on('error', (err) => {
-        Logger.error(`erro ao baixar audio ${cdr.callRecord}`, err.message, 'downloadAudio');
+        this.logger.error(
+          `Erro ao escrever audio no disco ${audioName}`,
+          err.message,
+        );
       });
     } catch (err) {
-      Logger.error(`erro ao baixar audio ${cdr.callRecord}`, err.message, 'downloadAudio');
+      this.logger.error(`Erro ao baixar audio ${cdr.uniqueId}`, err.message);
     }
   }
 
-  private async processRecognition(cdr: Cdr, audioName: string) {
+  private async processRecognition(audioName: string) {
     const command =
       this.WHISPER_COMMAND +
       ' ' +
@@ -61,42 +64,50 @@ export class RecognitionService {
       '--beam_size=5 ' +
       '--patience=2 ' +
       '--output_format=json ' +
-      `--output_dir=${this.TRANSCRIPTIONS_PATH}`
+      `--output_dir=${this.TRANSCRIPTIONS_PATH}`;
 
-    const result = spawnSync(command, { shell: true })
-    if (result.status === 0) {
-      Logger.log(`transcricao finalizada com sucesso ${cdr.callRecord}`, 'processRecognition');
-      await this.notifyIASMIN(cdr, audioName);
-    } else {
-      Logger.error(`erro na transcricao ${cdr.callRecord}`, 'processRecognition');
-    }
+    const result = spawnSync(command, { shell: true });
+    if (result.status === 0)
+      this.logger.log(`Transcricao finalizada com sucesso ${audioName}`);
+    else this.logger.error(`Erro na transcricao ${audioName}`);
   }
 
-  private async notifyIASMIN(cdr: Cdr, audioName: string) {
-    Logger.log(`notificando IASMIN ${cdr.callRecord}`, 'notifyIASMIN');
+  private async notifyTranscriptionToBackend(cdr: Cdr, audioName: string) {
+    this.logger.log(`Notificando backend transcricao ${audioName}`);
     try {
-      await axios.post(`${this.IASMIN_BACKEND_URL}/recognitions`, {
-        id: cdr.id,
-      createRecognitionDto: JSON.parse(fs.readFileSync(`${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.mp3', '.json')}`, 'utf8')),
-      }, {
-        timeout: this.REQUEST_TIMEOUT,
-      })
-      this.deleteAudioAndTranscription(audioName);
+      await axios.post(
+        `${this.IASMIN_BACKEND_URL}/recognitions`,
+        {
+          id: cdr.id,
+          createRecognitionDto: JSON.parse(
+            readFileSync(
+              `${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.sln', '.json')}`,
+              'utf8',
+            ),
+          ),
+        },
+        {
+          timeout: this.REQUEST_TIMEOUT,
+        },
+      );
     } catch (err) {
-      Logger.error(`erro ao notificar IASMIN ${cdr.callRecord}`, err.message, 'notifyIASMIN');
+      this.logger.error(`Erro ao notificar backend ${audioName}`, err.message);
     }
   }
 
   private deleteAudioAndTranscription(audioName: string) {
-    fs.unlink(this.AUDIOS_PATH + '/' + audioName, (err) => {
+    unlink(this.AUDIOS_PATH + '/' + audioName, (err) => {
       if (err) {
-        Logger.error(`erro ao deletar audio ${audioName}`, err, 'deleteAudioAndTranscription');
+        this.logger.error(`Erro ao deletar audio ${audioName}`, err);
       }
     });
-    fs.unlink(this.TRANSCRIPTIONS_PATH + '/' + audioName.replace('.mp3', '.json'), (err) => {
-      if (err) {
-        Logger.error(`erro ao deletar transcrição ${audioName}`, err, 'deleteAudioAndTranscription');
-      }
-    });
+    unlink(
+      this.TRANSCRIPTIONS_PATH + '/' + audioName.replace('.sln', '.json'),
+      (err) => {
+        if (err) {
+          this.logger.error(`Erro ao deletar transcrição ${audioName}`, err);
+        }
+      },
+    );
   }
 }
