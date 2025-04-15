@@ -91,7 +91,11 @@ export class RecognitionService {
         },
       );
     } catch (err) {
-      this.logger.error(`Erro ao notificar backend ${audioName}`, err.message);
+      this.logger.error(
+        `Erro ao notificar backend ${audioName}`,
+        err.response?.data?.message,
+        err.message,
+      );
     }
   }
 
