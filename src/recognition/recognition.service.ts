@@ -41,7 +41,7 @@ export class RecognitionService {
         this.logger.log(`audio baixado ${audioName}`);
         await this.processRecognition(audioName);
         await this.notifyTranscriptionToBackend(cdr, audioName, callLeg);
-        this.deleteAudioAndTranscription(audioName);
+        // this.deleteAudioAndTranscription(audioName);
       });
 
       writer.on('error', (err) => {
@@ -93,7 +93,7 @@ export class RecognitionService {
               `${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.sln', '.json')}`,
               'utf8',
             ),
-          ).segments,
+          ),
         },
         {
           timeout: this.REQUEST_TIMEOUT,
