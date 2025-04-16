@@ -19,15 +19,16 @@ export class RecognitionService {
   private readonly logger = new Logger(RecognitionService.name);
 
   async start(cdr: Cdr) {
-    const audioName = cdr.uniqueId.replace('.', '-').concat('-a.sln');
-    const callLeg = 'A';
-    await this.processAudio(cdr, audioName, callLeg);
+    const audioNameA = cdr.uniqueId.replace('.', '-').concat('-a.sln');
+    await this.processAudio(audioNameA);
     const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
-    const callLegB = 'B';
-    await this.processAudio(cdr, audioNameB, callLegB);
+    await this.processAudio(audioNameB);
+    await this.notifyTranscriptionToBackend(cdr, audioNameA, audioNameB);
+    this.deleteAudioAndTranscription(audioNameA);
+    this.deleteAudioAndTranscription(audioNameB);
   }
 
-  private async processAudio(cdr: Cdr, audioName: string, callLeg: string) {
+  private async processAudio(audioName: string) {
     try {
       const request = await axios({
         method: 'get',
@@ -40,8 +41,6 @@ export class RecognitionService {
       writer.on('finish', async () => {
         this.logger.log(`audio baixado ${audioName}`);
         await this.processRecognition(audioName);
-        await this.notifyTranscriptionToBackend(cdr, audioName, callLeg);
-        // this.deleteAudioAndTranscription(audioName);
       });
 
       writer.on('error', (err) => {
@@ -78,24 +77,21 @@ export class RecognitionService {
 
   private async notifyTranscriptionToBackend(
     cdr: Cdr,
-    audioName: string,
-    callLeg: string,
+    audioNameA: string,
+    audioNameB: string,
   ) {
-    this.logger.log(`Notificando backend transcricao ${audioName}`);
+    this.logger.log(`Notificando backend transcricao ${cdr.uniqueId}`);
     try {
-      const transcription = JSON.parse(
-        readFileSync(
-          `${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.sln', '.json')}`,
-          'utf8',
-        ),
-      );
-      this.logger.debug(transcription);
+      const transcriptionA = this.readTranscription(audioNameA);
+      const segmentsA = this.getSegmentWithCallLeg(transcriptionA, 'A');
+      const transcriptionB = this.readTranscription(audioNameB);
+      const segmentsB = this.getSegmentWithCallLeg(transcriptionB, 'B');
+      const segments = { segmentsA, segmentsB };
       await axios.post(
         `${this.IASMIN_BACKEND_URL}/recognitions`,
         {
           cdrId: cdr.id,
-          callLeg,
-          segments: transcription.segments,
+          segments,
         },
         {
           timeout: this.REQUEST_TIMEOUT,
@@ -103,11 +99,27 @@ export class RecognitionService {
       );
     } catch (err) {
       this.logger.error(
-        `Erro ao notificar backend ${audioName}`,
+        `Erro ao notificar backend ${cdr.uniqueId}`,
         err.response?.data?.message,
         err.message,
       );
     }
+  }
+
+  private getSegmentWithCallLeg(transcriptionA: any, callLeg: string) {
+    return transcriptionA.segments.map((s: any) => {
+      s.callLeg = callLeg;
+      return s;
+    });
+  }
+
+  private readTranscription(audioNameA: string) {
+    return JSON.parse(
+      readFileSync(
+        `${this.TRANSCRIPTIONS_PATH}/${audioNameA.replace('.sln', '.json')}`,
+        'utf8',
+      ),
+    );
   }
 
   private deleteAudioAndTranscription(audioName: string) {
