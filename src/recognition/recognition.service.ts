@@ -19,12 +19,15 @@ export class RecognitionService {
   private readonly logger = new Logger(RecognitionService.name);
 
   async start(cdr: Cdr) {
-    await this.downloadAudio(cdr);
-  }
-
-  private async downloadAudio(cdr: Cdr) {
     const audioName = cdr.uniqueId.replace('.', '-').concat('-a.sln');
     const callLeg = 'A';
+    await this.processAudio(cdr, audioName, callLeg);
+    const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
+    const callLegB = 'B';
+    await this.processAudio(cdr, audioNameB, callLegB);
+  }
+
+  private async processAudio(cdr: Cdr, audioName: string, callLeg: string) {
     try {
       const request = await axios({
         method: 'get',
