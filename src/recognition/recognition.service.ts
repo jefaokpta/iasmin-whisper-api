@@ -83,17 +83,19 @@ export class RecognitionService {
   ) {
     this.logger.log(`Notificando backend transcricao ${audioName}`);
     try {
+      const transcription = JSON.parse(
+        readFileSync(
+          `${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.sln', '.json')}`,
+          'utf8',
+        ),
+      );
+      this.logger.debug(transcription);
       await axios.post(
         `${this.IASMIN_BACKEND_URL}/recognitions`,
         {
           cdrId: cdr.id,
           callLeg,
-          segments: JSON.parse(
-            readFileSync(
-              `${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.sln', '.json')}`,
-              'utf8',
-            ),
-          ),
+          segments: transcription.segments,
         },
         {
           timeout: this.REQUEST_TIMEOUT,
