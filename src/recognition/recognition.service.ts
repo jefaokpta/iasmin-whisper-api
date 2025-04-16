@@ -24,6 +24,7 @@ export class RecognitionService {
 
   private async downloadAudio(cdr: Cdr) {
     const audioName = cdr.uniqueId.replace('.', '-').concat('-a.sln');
+    const callLeg = 'A';
     try {
       const request = await axios({
         method: 'get',
@@ -36,7 +37,7 @@ export class RecognitionService {
       writer.on('finish', async () => {
         this.logger.log(`audio baixado ${audioName}`);
         await this.processRecognition(audioName);
-        await this.notifyTranscriptionToBackend(cdr, audioName);
+        await this.notifyTranscriptionToBackend(cdr, audioName, callLeg);
         this.deleteAudioAndTranscription(audioName);
       });
 
@@ -72,19 +73,24 @@ export class RecognitionService {
     else this.logger.error(`Erro na transcricao ${audioName}`);
   }
 
-  private async notifyTranscriptionToBackend(cdr: Cdr, audioName: string) {
+  private async notifyTranscriptionToBackend(
+    cdr: Cdr,
+    audioName: string,
+    callLeg: string,
+  ) {
     this.logger.log(`Notificando backend transcricao ${audioName}`);
     try {
       await axios.post(
         `${this.IASMIN_BACKEND_URL}/recognitions`,
         {
-          id: cdr.id,
-          createRecognitionDto: JSON.parse(
+          cdrId: cdr.id,
+          callLeg,
+          segments: JSON.parse(
             readFileSync(
               `${this.TRANSCRIPTIONS_PATH}/${audioName.replace('.sln', '.json')}`,
               'utf8',
             ),
-          ),
+          ).segments,
         },
         {
           timeout: this.REQUEST_TIMEOUT,
