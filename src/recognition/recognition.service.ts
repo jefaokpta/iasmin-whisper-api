@@ -106,7 +106,6 @@ export class RecognitionService {
         'B',
       );
       const segments = segmentsA.concat(segmentsB);
-      this.logger.debug(segments);
       await axios.post(
         `${this.IASMIN_BACKEND_URL}/recognitions`,
         {
