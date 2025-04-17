@@ -37,7 +37,7 @@ export class RecognitionService {
     }
   }
 
-  private async processAudio(audioName: string): Promise<void> {
+  private processAudio(audioName: string): Promise<void> {
     return new Promise((resolve, reject) => {
       axios({
         method: 'get',
@@ -105,7 +105,7 @@ export class RecognitionService {
         this.readTranscription(audioNameB),
         'B',
       );
-      const segments = { segmentsA, segmentsB };
+      const segments = segmentsA.concat(segmentsB);
       this.logger.debug(segments);
       await axios.post(
         `${this.IASMIN_BACKEND_URL}/recognitions`,
