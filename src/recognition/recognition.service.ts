@@ -21,39 +21,52 @@ export class RecognitionService {
   async start(cdr: Cdr) {
     const audioNameA = cdr.uniqueId.replace('.', '-').concat('-a.sln');
     const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
-    await Promise.all([
-      this.processAudio(audioNameA),
-      this.processAudio(audioNameB),
-    ]);
-    await this.notifyTranscriptionToBackend(cdr, audioNameA, audioNameB);
-    this.deleteAudioAndTranscription(audioNameA);
-    this.deleteAudioAndTranscription(audioNameB);
+    try {
+      await Promise.all([
+        this.processAudio(audioNameA),
+        this.processAudio(audioNameB),
+      ]);
+      await this.notifyTranscriptionToBackend(cdr, audioNameA, audioNameB);
+      this.deleteAudioAndTranscription(audioNameA);
+      this.deleteAudioAndTranscription(audioNameB);
+    } catch (error) {
+      this.logger.error(
+        `Erro no processamento de áudio para ${cdr.uniqueId}`,
+        error,
+      );
+    }
   }
 
-  private async processAudio(audioName: string) {
-    try {
-      const request = await axios({
+  private async processAudio(audioName: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      axios({
         method: 'get',
         url: `${this.IASMIN_PABX_URL}/${audioName}`,
         responseType: 'stream',
-      });
-      const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
-      request.data.pipe(writer);
+      })
+        .then((request) => {
+          const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
+          request.data.pipe(writer);
 
-      writer.on('finish', async () => {
-        this.logger.log(`audio baixado ${audioName}`);
-        await this.processRecognition(audioName);
-      });
+          writer.on('finish', async () => {
+            this.logger.log(`audio baixado ${audioName}`);
+            await this.processRecognition(audioName);
+            resolve();
+          });
 
-      writer.on('error', (err) => {
-        this.logger.error(
-          `Erro ao escrever audio no disco ${audioName}`,
-          err.message,
-        );
-      });
-    } catch (err) {
-      this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
-    }
+          writer.on('error', (err) => {
+            this.logger.error(
+              `Erro ao escrever audio no disco ${audioName}`,
+              err.message,
+            );
+            reject(err);
+          });
+        })
+        .catch((err) => {
+          this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
+          reject(err);
+        });
+    });
   }
 
   private async processRecognition(audioName: string) {
