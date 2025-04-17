@@ -27,8 +27,8 @@ export class RecognitionService {
         this.processAudio(audioNameB),
       ]);
       await this.notifyTranscriptionToBackend(cdr, audioNameA, audioNameB);
-      this.deleteAudioAndTranscription(audioNameA);
-      this.deleteAudioAndTranscription(audioNameB);
+      // this.deleteAudioAndTranscription(audioNameA); //TODO: reativar depois dos testes
+      // this.deleteAudioAndTranscription(audioNameB);
     } catch (error) {
       this.logger.error(
         `Erro no processamento de áudio para ${cdr.uniqueId}`,
