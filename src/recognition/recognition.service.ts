@@ -82,11 +82,16 @@ export class RecognitionService {
   ) {
     this.logger.log(`Notificando backend transcricao ${cdr.uniqueId}`);
     try {
-      const transcriptionA = this.readTranscription(audioNameA);
-      const segmentsA = this.getSegmentWithCallLeg(transcriptionA, 'A');
-      const transcriptionB = this.readTranscription(audioNameB);
-      const segmentsB = this.getSegmentWithCallLeg(transcriptionB, 'B');
+      const segmentsA = this.getSegmentWithCallLeg(
+        this.readTranscription(audioNameA),
+        'A',
+      );
+      const segmentsB = this.getSegmentWithCallLeg(
+        this.readTranscription(audioNameB),
+        'B',
+      );
       const segments = { segmentsA, segmentsB };
+      this.logger.debug(segments);
       await axios.post(
         `${this.IASMIN_BACKEND_URL}/recognitions`,
         {
