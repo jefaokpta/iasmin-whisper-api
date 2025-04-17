@@ -20,9 +20,11 @@ export class RecognitionService {
 
   async start(cdr: Cdr) {
     const audioNameA = cdr.uniqueId.replace('.', '-').concat('-a.sln');
-    await this.processAudio(audioNameA);
     const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
-    await this.processAudio(audioNameB);
+    await Promise.all([
+      this.processAudio(audioNameA),
+      this.processAudio(audioNameB),
+    ]);
     await this.notifyTranscriptionToBackend(cdr, audioNameA, audioNameB);
     this.deleteAudioAndTranscription(audioNameA);
     this.deleteAudioAndTranscription(audioNameB);
