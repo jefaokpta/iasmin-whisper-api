@@ -4,7 +4,7 @@ import axios from 'axios';
 import { spawnSync } from 'node:child_process';
 import { createWriteStream, readFileSync, unlink } from 'node:fs';
 import { Cdr } from '../model/cdr';
-import { CallLegEnum } from '../utils/enums';
+import { CallLegEnum, UserfieldEnum } from '../utils/enums';
 
 @Injectable()
 export class RecognitionService {
@@ -19,7 +19,7 @@ export class RecognitionService {
   constructor(private readonly configService: ConfigService) {}
 
   async start(cdr: Cdr) {
-    if (cdr.callRecord) return this.processUpload(cdr);
+    if (cdr.userfield === UserfieldEnum.UPLOAD) return this.processUpload(cdr);
     const audioNameA = cdr.uniqueId.replace('.', '-').concat('-a.sln');
     const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
     const audioUrlA = `${this.IASMIN_PABX_URL}/${audioNameA}`;
@@ -36,7 +36,7 @@ export class RecognitionService {
 
   private async processUpload(cdr: Cdr) {
     const audioUrl = `${this.IASMIN_PABX_URL}/mp3s/${cdr.callRecord}`;
-    await this.processAudio(cdr.callRecord!, audioUrl);
+    await this.processAudio(cdr.callRecord, audioUrl);
     await this.notifyTranscriptionToBackend(cdr, '', '', true);
   }
 
@@ -94,7 +94,7 @@ export class RecognitionService {
     try {
       let segments: any[];
       if (upload) {
-        segments = this.getSegmentWithCallLeg(this.readTranscription(cdr.callRecord!), CallLegEnum.BOTH);
+        segments = this.getSegmentWithCallLeg(this.readTranscription(cdr.callRecord), CallLegEnum.BOTH);
       } else {
         const segmentsA = this.getSegmentWithCallLeg(this.readTranscription(audioNameA), CallLegEnum.A);
         const segmentsB = this.getSegmentWithCallLeg(this.readTranscription(audioNameB), CallLegEnum.B);

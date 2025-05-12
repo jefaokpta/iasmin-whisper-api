@@ -9,3 +9,9 @@ export enum CallLegEnum {
   B = 'B',
   BOTH = 'BOTH',
 }
+
+export enum UserfieldEnum {
+  OUTBOUND = 'OUTBOUND',
+  INBOUND = 'INBOUND',
+  UPLOAD = 'UPLOAD',
+}
