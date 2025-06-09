@@ -11,10 +11,7 @@ export class KafkaController {
 
   @MessagePattern('transcriptions')
   consume(@Payload() cdr: Cdr) {
-    this.recognitionService
-      .start(cdr)
-      .then(() => this.logger.log(`Transcricoes concluidas ${cdr.uniqueId}`))
-      .catch((err) => this.logger.error(`Trnacricoes erro ${cdr.uniqueId}`, err));
+    this.recognitionService.start(cdr).catch((err) => this.logger.error(`Transcricoes erro ${cdr.uniqueId}`, err));
     this.logger.debug(`Liberando Kafka ${cdr.uniqueId}`);
   }
 }
