@@ -23,16 +23,16 @@ async function bootstrap() {
         clientId: 'iasmin-whisper-api',
         brokers: [configService.get('VEIA_KAFKA_BROKER') ?? 'localhost:9094'],
         retry: {
-          retries: 10,
-          initialRetryTime: 30_000,
+          retries: 15,
+          initialRetryTime: 5_000,
           maxRetryTime: 60_000,
         },
       },
       consumer: {
         groupId: 'iasmin-whisper-api-consumer',
         sessionTimeout: 600_000,
-        heartbeatInterval: 300_000,
-        maxWaitTimeInMs: 60_000,
+        heartbeatInterval: 200_000,
+        maxWaitTimeInMs: 30_000,
         retry: {
           restartOnFailure: async () => true,
         },
