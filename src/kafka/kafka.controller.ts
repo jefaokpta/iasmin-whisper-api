@@ -1,4 +1,4 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Logger } from '@nestjs/common';
 import { RecognitionService } from '../recognition/recognition.service';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { Cdr } from '../model/cdr';
@@ -7,8 +7,14 @@ import { Cdr } from '../model/cdr';
 export class KafkaController {
   constructor(private readonly recognitionService: RecognitionService) {}
 
+  private readonly logger = new Logger(KafkaController.name);
+
   @MessagePattern('transcriptions')
   consume(@Payload() cdr: Cdr) {
-    this.recognitionService.start(cdr);
+    this.recognitionService
+      .start(cdr)
+      .then(() => this.logger.log(`Transcricoes concluidas ${cdr.uniqueId}`))
+      .catch((err) => this.logger.error(`Trnacricoes erro ${cdr.uniqueId}`, err));
+    this.logger.debug(`Liberando Kafka ${cdr.uniqueId}`);
   }
 }
