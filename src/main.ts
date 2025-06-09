@@ -8,11 +8,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: false,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: false,
+      transform: true,
+    }),
+  );
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.KAFKA,
@@ -22,12 +24,18 @@ async function bootstrap() {
         brokers: [configService.get('VEIA_KAFKA_BROKER') ?? 'localhost:9094'],
         retry: {
           retries: 10,
-          initialRetryTime: 300,
-          maxRetryTime: 10000,
+          initialRetryTime: 2_000,
+          maxRetryTime: 30_000,
         },
       },
       consumer: {
         groupId: 'iasmin-whisper-api-consumer',
+        sessionTimeout: 300_000, // 30 segundos
+        heartbeatInterval: 60_000, // 3 segundos
+        maxWaitTimeInMs: 60_000, // 5 segundos
+        retry: {
+          restartOnFailure: async () => true,
+        },
       },
     },
   });
