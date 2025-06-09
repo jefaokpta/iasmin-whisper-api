@@ -24,8 +24,8 @@ async function bootstrap() {
         brokers: [configService.get('VEIA_KAFKA_BROKER') ?? 'localhost:9094'],
         retry: {
           retries: 10,
-          initialRetryTime: 2_000,
-          maxRetryTime: 30_000,
+          initialRetryTime: 30_000,
+          maxRetryTime: 60_000,
         },
       },
       consumer: {
