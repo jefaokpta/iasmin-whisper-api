@@ -30,8 +30,8 @@ async function bootstrap() {
       },
       consumer: {
         groupId: 'iasmin-whisper-api-consumer',
-        sessionTimeout: 120_000,
-        heartbeatInterval: 30_000,
+        sessionTimeout: 1800_000,
+        heartbeatInterval: 60_000,
         maxWaitTimeInMs: 10_000,
       },
     },
