@@ -5,4 +5,5 @@ export interface Cdr {
   readonly uniqueId: string;
   readonly callRecord: string;
   readonly userfield: UserfieldEnum;
+  readonly isDeveloperInstance?: boolean;
 }

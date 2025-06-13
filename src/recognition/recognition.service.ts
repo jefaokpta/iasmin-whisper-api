@@ -12,6 +12,7 @@ export class RecognitionService {
   private readonly TRANSCRIPTIONS_PATH = 'transcriptions';
   private readonly IASMIN_PABX_URL = this.configService.get('IASMIN_PABX_URL');
   private readonly IASMIN_BACKEND_URL = this.configService.get('IASMIN_BACKEND_URL');
+  private readonly IASMIN_BACKEND_URL_DEVELOPER = this.configService.get('IASMIN_BACKEND_URL_DEVELOPER');
   private readonly WHISPER_COMMAND = this.configService.get('WHISPER_COMMAND');
   private readonly REQUEST_TIMEOUT = 60000; // 1 minuto
   private readonly logger = new Logger(RecognitionService.name);
@@ -100,8 +101,9 @@ export class RecognitionService {
         const segmentsB = this.getSegmentWithCallLeg(this.readTranscription(audioNameB), CallLegEnum.B);
         segments = segmentsA.concat(segmentsB);
       }
+      const backendUrl = this.defineBackendUrl(cdr.isDeveloperInstance);
       await axios.post(
-        `${this.IASMIN_BACKEND_URL}/recognitions`,
+        `${backendUrl}/recognitions`,
         {
           cdrId: cdr.id,
           segments,
@@ -138,5 +140,12 @@ export class RecognitionService {
         this.logger.error(`Erro ao deletar transcrição ${audioName}`, err);
       }
     });
+  }
+
+  private defineBackendUrl(isDeveloperInstance?: boolean) {
+    if (isDeveloperInstance) {
+      return this.IASMIN_BACKEND_URL_DEVELOPER;
+    }
+    return this.IASMIN_BACKEND_URL;
   }
 }
