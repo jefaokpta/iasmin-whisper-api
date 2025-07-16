@@ -33,6 +33,11 @@ async function bootstrap() {
         sessionTimeout: 1800_000,
         heartbeatInterval: 60_000,
         maxWaitTimeInMs: 10_000,
+        retry: {
+          retries: 35,
+          initialRetryTime: 1_000,
+          maxRetryTime: 30_000,
+        },
       },
     },
   });

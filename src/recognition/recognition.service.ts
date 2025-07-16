@@ -20,6 +20,7 @@ export class RecognitionService {
   constructor(private readonly configService: ConfigService) {}
 
   async start(cdr: Cdr) {
+    if (await this.hasTranscription(cdr)) return;
     if (cdr.userfield === UserfieldEnum.UPLOAD) return this.processUpload(cdr);
     const audioNameA = cdr.uniqueId.replace('.', '-').concat('-a.sln');
     const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
@@ -32,6 +33,20 @@ export class RecognitionService {
       this.deleteAudioAndTranscription(audioNameB);
     } catch (error) {
       this.logger.error(`Erro no processamento de áudio para ${cdr.uniqueId}`, error);
+    }
+  }
+
+  private async hasTranscription(cdr: Cdr): Promise<boolean> {
+    try {
+      const backendUrl = this.defineBackendUrl(cdr.isDeveloperInstance);
+      await axios.get(`${backendUrl}/recognitions/${cdr.uniqueId}`, {
+        timeout: this.REQUEST_TIMEOUT,
+      });
+      this.logger.debug(`Verificado q ja tem transcricao ${cdr.uniqueId}, cancelando trabalhos`);
+      return true;
+    } catch (error) {
+      this.logger.debug(`Verificado q nao tem transcricao ainda ${cdr.uniqueId}`, error.message);
+      return false;
     }
   }
 
