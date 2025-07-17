@@ -27,8 +27,7 @@ export class RecognitionService {
     const audioUrlA = `${this.IASMIN_PABX_URL}/${audioNameA}`;
     const audioUrlB = `${this.IASMIN_PABX_URL}/${audioNameB}`;
     try {
-      await this.processAudio(audioNameA, audioUrlA);
-      await this.processAudio(audioNameB, audioUrlB);
+      await Promise.all([this.processAudio(audioNameA, audioUrlA), this.processAudio(audioNameB, audioUrlB)]);
       await this.notifyTranscriptionToBackend(cdr, audioNameA, audioNameB);
       this.deleteAudioAndTranscription(audioNameA);
       this.deleteAudioAndTranscription(audioNameB);
