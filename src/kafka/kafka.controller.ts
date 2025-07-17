@@ -8,7 +8,7 @@ export class KafkaController {
   constructor(private readonly recognitionService: RecognitionService) {}
 
   @MessagePattern('transcriptions')
-  consume(@Payload() cdr: Cdr) {
-    return this.recognitionService.start(cdr);
+  async consume(@Payload() cdr: Cdr) {
+    return await this.recognitionService.start(cdr);
   }
 }
