@@ -27,7 +27,8 @@ export class RecognitionService {
     const audioUrlA = `${this.IASMIN_PABX_URL}/${audioNameA}`;
     const audioUrlB = `${this.IASMIN_PABX_URL}/${audioNameB}`;
     try {
-      await Promise.all([this.processAudio(audioNameA, audioUrlA), this.processAudio(audioNameB, audioUrlB)]);
+      await this.processAudio(audioNameA, audioUrlA);
+      await this.processAudio(audioNameB, audioUrlB);
       await this.notifyTranscriptionToBackend(cdr, audioNameA, audioNameB);
       this.deleteAudioAndTranscription(audioNameA);
       this.deleteAudioAndTranscription(audioNameB);
@@ -56,36 +57,32 @@ export class RecognitionService {
     await this.notifyTranscriptionToBackend(cdr, '', '', true);
   }
 
-  private processAudio(audioName: string, audioUrl: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      axios({
+  private async processAudio(audioName: string, audioUrl: string) {
+    try {
+      const request = await axios({
         method: 'get',
         url: audioUrl,
         responseType: 'stream',
-      })
-        .then((request) => {
-          const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
-          request.data.pipe(writer);
+      });
+      const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
+      request.data.pipe(writer);
 
-          writer.on('finish', async () => {
-            this.logger.log(`audio baixado ${audioName}`);
-            await this.processRecognition(audioName);
-            resolve();
-          });
+      writer.on('error', (err) => {
+        this.logger.error(`Erro ao escrever audio ${audioName} no disco`, err.message);
+        throw err;
+      });
 
-          writer.on('error', (err) => {
-            this.logger.error(`Erro ao escrever audio no disco ${audioName}`, err.message);
-            reject(err);
-          });
-        })
-        .catch((err) => {
-          this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
-          reject(err);
-        });
-    });
+      writer.on('finish', async () => {
+        this.logger.log(`audio baixado ${audioName}`);
+        this.processRecognition(audioName);
+      });
+    } catch (err) {
+      this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
+      throw err;
+    }
   }
 
-  private async processRecognition(audioName: string) {
+  private processRecognition(audioName: string) {
     const command =
       this.WHISPER_COMMAND +
       ' ' +
