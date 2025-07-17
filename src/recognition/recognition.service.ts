@@ -56,29 +56,31 @@ export class RecognitionService {
     await this.notifyTranscriptionToBackend(cdr, '', '', true);
   }
 
-  private async processAudio(audioName: string, audioUrl: string) {
-    try {
-      const request = await axios({
+  private processAudio(audioName: string, audioUrl: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      axios({
         method: 'get',
         url: audioUrl,
         responseType: 'stream',
-      });
-      const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
-      request.data.pipe(writer);
-
-      writer.on('error', (err) => {
-        this.logger.error(`Erro ao escrever audio ${audioName} no disco`, err.message);
-        throw err;
-      });
-
-      writer.on('finish', async () => {
-        this.logger.log(`audio baixado ${audioName}`);
-        await this.processRecognition(audioName);
-      });
-    } catch (err) {
-      this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
-      throw err;
-    }
+      })
+        .then((request) => {
+          const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
+          request.data.pipe(writer);
+          writer.on('error', (err) => {
+            this.logger.error(`Erro ao escrever audio ${audioName} no disco`, err.message);
+            reject(err);
+          });
+          writer.on('finish', async () => {
+            this.logger.log(`audio baixado ${audioName}`);
+            await this.processRecognition(audioName);
+            resolve();
+          });
+        })
+        .catch((err: Error) => {
+          this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
+          reject(err);
+        });
+    });
   }
 
   private async processRecognition(audioName: string) {
