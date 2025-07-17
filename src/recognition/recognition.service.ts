@@ -73,7 +73,7 @@ export class RecognitionService {
 
       writer.on('finish', async () => {
         this.logger.log(`audio baixado ${audioName}`);
-        this.processRecognition(audioName);
+        await this.processRecognition(audioName);
       });
     } catch (err) {
       this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
@@ -81,7 +81,7 @@ export class RecognitionService {
     }
   }
 
-  private processRecognition(audioName: string) {
+  private async processRecognition(audioName: string) {
     const command =
       this.WHISPER_COMMAND +
       ' ' +
