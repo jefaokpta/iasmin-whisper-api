@@ -77,7 +77,7 @@ export class RecognitionService {
     }
   }
 
-  private async processRecognition(audioName: string) {
+  private processRecognition(audioName: string) {
     const command =
       this.WHISPER_COMMAND +
       ' ' +
@@ -92,7 +92,7 @@ export class RecognitionService {
       '--output_format=json ' +
       `--output_dir=${this.TRANSCRIPTIONS_PATH}`;
 
-    return new Promise<void>((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       exec(command, (error, stdout, stderr) => {
         if (error) {
           this.logger.error(`Erro ao processar audio ${audioName}`, error.message);
@@ -103,7 +103,7 @@ export class RecognitionService {
           this.logger.warn(`Erro ao processar audio: ${stderr}`);
         }
         this.logger.log(`Transcription completed: ${stdout}`);
-        resolve();
+        resolve(stdout);
       });
     });
   }
