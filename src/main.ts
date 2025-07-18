@@ -29,14 +29,14 @@ async function bootstrap() {
         heartbeatInterval: 300_000, // 5 minutos
         maxWaitTimeInMs: 10_000,
         retry: {
-          retries: 3,
-          initialRetryTime: 100,
+          retries: 15,
+          initialRetryTime: 300,
           maxRetryTime: 30_000,
         },
         // Configuração importante para tarefas longas
         allowAutoTopicCreation: false,
         maxInFlightRequests: 1, // Processar uma mensagem por vez
-        rebalanceTimeout: 1800_000, // 30 minutos
+        rebalanceTimeout: 300_000, // 30 minutos
       },
     },
   });
