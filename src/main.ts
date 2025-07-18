@@ -34,7 +34,6 @@ async function bootstrap() {
         //   maxRetryTime: 30_000,
         // },
         // Configuração importante para tarefas longas
-        allowAutoTopicCreation: false,
         maxInFlightRequests: 1, // Processar uma mensagem por vez
         // rebalanceTimeout: 300_000, // 5 minutos
       },
