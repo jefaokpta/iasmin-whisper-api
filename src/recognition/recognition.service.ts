@@ -21,15 +21,18 @@ export class RecognitionService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  async start(cdr: Cdr) {
+  jobManager(cdr: Cdr) {
     if (this.isProcessing) {
       this.logger.debug(`Whisper ocupado ${cdr.uniqueId}`);
       throw new RuntimeException('Whisper ocupado');
     }
+    this.isProcessing = true;
+    this.start(cdr);
+  }
+
+  private async start(cdr: Cdr) {
     if (await this.hasTranscription(cdr)) return;
     if (cdr.userfield === UserfieldEnum.UPLOAD) return this.processUpload(cdr);
-    this.isProcessing = true;
-
     const audioNameA = cdr.uniqueId.replace('.', '-').concat('-a.sln');
     const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
     const audioUrlA = `${this.IASMIN_PABX_URL}/${audioNameA}`;

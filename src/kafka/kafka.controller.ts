@@ -9,6 +9,6 @@ export class KafkaController {
 
   @MessagePattern('transcriptions')
   consume(@Payload() cdr: Cdr) {
-    return this.recognitionService.start(cdr);
+    return this.recognitionService.jobManager(cdr);
   }
 }
