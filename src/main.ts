@@ -27,7 +27,7 @@ async function bootstrap() {
         groupId: 'iasmin-whisper-api-consumer',
         sessionTimeout: 1800_000, // 30 minutos
         heartbeatInterval: 300_000, // 5 minutos
-        maxWaitTimeInMs: 1800_000, // 30 minutos
+        maxWaitTimeInMs: 10_000,
         retry: {
           retries: 3,
           initialRetryTime: 100,
