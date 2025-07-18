@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { exec } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { createWriteStream, readFileSync, unlink } from 'node:fs';
 import { Cdr } from '../model/cdr';
 import { CallLegEnum, UserfieldEnum } from '../utils/enums';
+import { RuntimeException } from '@nestjs/core/errors/exceptions';
 
 @Injectable()
 export class RecognitionService {
@@ -93,18 +94,14 @@ export class RecognitionService {
       `--output_dir=${this.TRANSCRIPTIONS_PATH}`;
 
     return new Promise((resolve, reject) => {
-      exec(command, (error, stdout, stderr) => {
-        if (error) {
-          this.logger.error(`Erro ao processar audio ${audioName}`, error.message);
-          reject(error);
-          return;
-        }
-        if (stderr) {
-          this.logger.warn(`Erro ao processar audio: ${stderr}`);
-        }
-        this.logger.log(`Transcription completed: ${stdout}`);
-        resolve(stdout);
-      });
+      try {
+        const result = spawnSync(command, { shell: true });
+        this.logger.log(`Transcricao finalizada com sucesso ${audioName}`);
+        resolve(result.status);
+      } catch (err) {
+        this.logger.error(`Erro ao transcrever audio ${audioName}`, err.message);
+        reject(new RuntimeException('Erro ao transcrever audio'));
+      }
     });
   }
 
