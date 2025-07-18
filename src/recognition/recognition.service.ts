@@ -70,9 +70,9 @@ export class RecognitionService {
           const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
           request.data.pipe(writer);
 
-          writer.on('finish', async () => {
+          writer.on('finish', () => {
             this.logger.log(`audio baixado ${audioName}`);
-            await this.processRecognition(audioName);
+            this.processRecognition(audioName);
             resolve();
           });
 
@@ -88,7 +88,7 @@ export class RecognitionService {
     });
   }
 
-  private async processRecognition(audioName: string) {
+  private processRecognition(audioName: string) {
     const command =
       this.WHISPER_COMMAND +
       ' ' +
