@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { spawnSync } from 'node:child_process';
+import { exec } from 'node:child_process';
 import { createWriteStream, readFileSync, unlink } from 'node:fs';
 import { Cdr } from '../model/cdr';
 import { CallLegEnum, UserfieldEnum } from '../utils/enums';
@@ -56,31 +56,25 @@ export class RecognitionService {
     await this.notifyTranscriptionToBackend(cdr, '', '', true);
   }
 
-  private processAudio(audioName: string, audioUrl: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      axios({
+  private async processAudio(audioName: string, audioUrl: string): Promise<void> {
+    try {
+      const request = await axios({
         method: 'get',
         url: audioUrl,
         responseType: 'stream',
-      })
-        .then((request) => {
-          const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
-          request.data.pipe(writer);
-          writer.on('error', (err) => {
-            this.logger.error(`Erro ao escrever audio ${audioName} no disco`, err.message);
-            reject(err);
-          });
-          writer.on('finish', async () => {
-            this.logger.log(`audio baixado ${audioName}`);
-            await this.processRecognition(audioName);
-            resolve();
-          });
-        })
-        .catch((err: Error) => {
-          this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
-          reject(err);
-        });
-    });
+      });
+      const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
+      request.data.pipe(writer);
+      writer.on('error', (err) => {
+        this.logger.error(`Erro ao escrever audio ${audioName} no disco`, err.message);
+      });
+      writer.on('finish', async () => {
+        this.logger.log(`audio baixado ${audioName}`);
+        await this.processRecognition(audioName);
+      });
+    } catch (err) {
+      this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
+    }
   }
 
   private async processRecognition(audioName: string) {
@@ -98,9 +92,20 @@ export class RecognitionService {
       '--output_format=json ' +
       `--output_dir=${this.TRANSCRIPTIONS_PATH}`;
 
-    const result = spawnSync(command, { shell: true });
-    if (result.status === 0) this.logger.log(`Transcricao finalizada com sucesso ${audioName}`);
-    else this.logger.error(`Erro na transcricao ${audioName}`);
+    return new Promise<void>((resolve, reject) => {
+      exec(command, (error, stdout, stderr) => {
+        if (error) {
+          this.logger.error(`Erro ao processar audio ${audioName}`, error.message);
+          reject(error);
+          return;
+        }
+        if (stderr) {
+          this.logger.warn(`Erro ao processar audio: ${stderr}`);
+        }
+        this.logger.log(`Transcription completed: ${stdout}`);
+        resolve();
+      });
+    });
   }
 
   private async notifyTranscriptionToBackend(cdr: Cdr, audioNameA: string, audioNameB: string, upload: boolean = false) {
