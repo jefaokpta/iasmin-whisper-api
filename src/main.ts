@@ -29,7 +29,7 @@ async function bootstrap() {
         // },
       },
       consumer: {
-        groupId: 'teste-iasmin-whisper-api-consumer',
+        groupId: 'teste2-iasmin-whisper-api-consumer',
         // sessionTimeout: 1800_000,
         // heartbeatInterval: 60_000,
         // maxWaitTimeInMs: 10_000,
