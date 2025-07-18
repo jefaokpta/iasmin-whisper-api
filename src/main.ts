@@ -25,18 +25,18 @@ async function bootstrap() {
       },
       consumer: {
         groupId: 'iasmin-whisper-api-consumer',
-        sessionTimeout: 1800_000, // 30 minutos
-        heartbeatInterval: 300_000, // 5 minutos
-        maxWaitTimeInMs: 10_000,
-        retry: {
-          retries: 15,
-          initialRetryTime: 300,
-          maxRetryTime: 30_000,
-        },
+        // sessionTimeout: 1800_000, // 30 minutos
+        // heartbeatInterval: 300_000, // 5 minutos
+        // maxWaitTimeInMs: 10_000,
+        // retry: {
+        //   retries: 15,
+        //   initialRetryTime: 300,
+        //   maxRetryTime: 30_000,
+        // },
         // Configuração importante para tarefas longas
         allowAutoTopicCreation: false,
         maxInFlightRequests: 1, // Processar uma mensagem por vez
-        rebalanceTimeout: 300_000, // 30 minutos
+        // rebalanceTimeout: 300_000, // 5 minutos
       },
     },
   });
