@@ -17,25 +17,32 @@ export class RecognitionService {
   private readonly WHISPER_COMMAND = this.configService.get('WHISPER_COMMAND');
   private readonly REQUEST_TIMEOUT = 60000; // 1 minuto
   private readonly logger = new Logger(RecognitionService.name);
+  private isProcessing = false;
 
   constructor(private readonly configService: ConfigService) {}
 
   async start(cdr: Cdr) {
+    if (this.isProcessing) {
+      this.logger.debug(`Whisper ocupado ${cdr.uniqueId}`);
+      throw new RuntimeException('Whisper ocupado');
+    }
     if (await this.hasTranscription(cdr)) return;
     if (cdr.userfield === UserfieldEnum.UPLOAD) return this.processUpload(cdr);
+    this.isProcessing = true;
+
     const audioNameA = cdr.uniqueId.replace('.', '-').concat('-a.sln');
     const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
     const audioUrlA = `${this.IASMIN_PABX_URL}/${audioNameA}`;
     const audioUrlB = `${this.IASMIN_PABX_URL}/${audioNameB}`;
     try {
-      // await Promise.all([this.processAudio(audioNameA, audioUrlA), this.processAudio(audioNameB, audioUrlB)]);
-      await this.processAudio(audioNameA, audioUrlA);
-      await this.processAudio(audioNameB, audioUrlB);
+      await Promise.all([this.processAudio(audioNameA, audioUrlA), this.processAudio(audioNameB, audioUrlB)]);
       await this.notifyTranscriptionToBackend(cdr, audioNameA, audioNameB);
       this.deleteAudioAndTranscription(audioNameA);
       this.deleteAudioAndTranscription(audioNameB);
     } catch (error) {
       this.logger.error(`Erro no processamento de áudio para ${cdr.uniqueId}`, error);
+    } finally {
+      this.isProcessing = false;
     }
   }
 
