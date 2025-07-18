@@ -59,28 +59,36 @@ export class RecognitionService {
     await this.notifyTranscriptionToBackend(cdr, '', '', true);
   }
 
-  private async processAudio(audioName: string, audioUrl: string): Promise<void> {
-    try {
-      const request = await axios({
+  private processAudio(audioName: string, audioUrl: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      axios({
         method: 'get',
         url: audioUrl,
         responseType: 'stream',
-      });
-      const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
-      request.data.pipe(writer);
-      writer.on('error', (err) => {
-        this.logger.error(`Erro ao escrever audio ${audioName} no disco`, err.message);
-      });
-      writer.on('finish', async () => {
-        this.logger.log(`audio baixado ${audioName}`);
-        await this.processRecognition(audioName);
-      });
-    } catch (err) {
-      this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
-    }
+      })
+        .then((request) => {
+          const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
+          request.data.pipe(writer);
+
+          writer.on('finish', async () => {
+            this.logger.log(`audio baixado ${audioName}`);
+            await this.processRecognition(audioName);
+            resolve();
+          });
+
+          writer.on('error', (err) => {
+            this.logger.error(`Erro ao escrever audio no disco ${audioName}`, err.message);
+            reject(err);
+          });
+        })
+        .catch((err) => {
+          this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
+          reject(new RuntimeException('Promise Reject - Erro ao baixar audio'));
+        });
+    });
   }
 
-  private processRecognition(audioName: string) {
+  private async processRecognition(audioName: string) {
     const command =
       this.WHISPER_COMMAND +
       ' ' +
@@ -95,16 +103,9 @@ export class RecognitionService {
       '--output_format=json ' +
       `--output_dir=${this.TRANSCRIPTIONS_PATH}`;
 
-    return new Promise((resolve, reject) => {
-      try {
-        const result = spawnSync(command, { shell: true });
-        this.logger.log(`Transcricao finalizada com sucesso ${audioName}`);
-        resolve(result.status);
-      } catch (err) {
-        this.logger.error(`Erro ao transcrever audio ${audioName}`, err.message);
-        reject(new RuntimeException('Erro ao transcrever audio'));
-      }
-    });
+    const result = spawnSync(command, { shell: true });
+    if (result.status === 0) this.logger.log(`Transcricao finalizada com sucesso ${audioName}`);
+    else this.logger.error(`Erro na transcricao ${audioName}`);
   }
 
   private async notifyTranscriptionToBackend(cdr: Cdr, audioNameA: string, audioNameB: string, upload: boolean = false) {
