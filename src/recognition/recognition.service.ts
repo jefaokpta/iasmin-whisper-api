@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { spawnSync } from 'node:child_process';
 import { createWriteStream, readFileSync, unlink } from 'node:fs';
 import { Cdr } from '../model/cdr';
 import { CallLegEnum, UserfieldEnum } from '../utils/enums';
 import { RuntimeException } from '@nestjs/core/errors/exceptions';
+import { Worker } from 'node:worker_threads';
 
 @Injectable()
 export class RecognitionService {
@@ -14,19 +14,21 @@ export class RecognitionService {
   private readonly IASMIN_PABX_URL = this.configService.get('IASMIN_PABX_URL');
   private readonly IASMIN_BACKEND_URL = this.configService.get('IASMIN_BACKEND_URL');
   private readonly IASMIN_BACKEND_URL_DEVELOPER = this.configService.get('IASMIN_BACKEND_URL_DEVELOPER');
-  private readonly WHISPER_COMMAND = this.configService.get('WHISPER_COMMAND');
   private readonly REQUEST_TIMEOUT = 60000; // 1 minuto
   private readonly logger = new Logger(RecognitionService.name);
-  private isProcessing = false;
+  private worker: Worker;
+  private isWorkerBusy = false;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    this.createWorker();
+  }
 
   jobManager(cdr: Cdr) {
-    if (this.isProcessing) {
+    if (this.isWorkerBusy) {
       this.logger.debug(`Whisper ocupado ${cdr.uniqueId}`);
       throw new RuntimeException('Whisper ocupado');
     }
-    this.isProcessing = true;
+    this.isWorkerBusy = true;
     this.start(cdr);
   }
 
@@ -37,16 +39,34 @@ export class RecognitionService {
     const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
     const audioUrlA = `${this.IASMIN_PABX_URL}/${audioNameA}`;
     const audioUrlB = `${this.IASMIN_PABX_URL}/${audioNameB}`;
-    try {
-      await Promise.all([this.processAudio(audioNameA, audioUrlA), this.processAudio(audioNameB, audioUrlB)]);
-      await this.notifyTranscriptionToBackend(cdr, audioNameA, audioNameB);
-      this.deleteAudioAndTranscription(audioNameA);
-      this.deleteAudioAndTranscription(audioNameB);
-    } catch (error) {
-      this.logger.error(`Erro no processamento de áudio para ${cdr.uniqueId}`, error);
-    } finally {
-      this.isProcessing = false;
-    }
+    this.downloadAudio({ cdr, audioNameA, audioUrlA, audioNameB, audioUrlB, callLeg: CallLegEnum.A });
+  }
+
+  private createWorker() {
+    this.worker = new Worker('./dist/workers/transcription.worker.js');
+    this.isWorkerBusy = false;
+    this.worker.on(
+      'message',
+      async (audioData: { cdr: Cdr; audioNameA: string; audioUrlA: string; audioNameB: string; audioUrlB: string; callLeg?: CallLegEnum }) => {
+        this.logger.debug(`Transcricao finalizada perna ${audioData.callLeg} ${audioData.cdr.uniqueId}`);
+        if (audioData.callLeg === CallLegEnum.A) {
+          this.downloadAudio({ ...audioData, callLeg: CallLegEnum.B });
+          return;
+        }
+        this.isWorkerBusy = false;
+        await this.notifyTranscriptionToBackend(audioData.cdr, audioData.audioNameA, audioData.audioNameB);
+        this.deleteAudioAndTranscription(audioData.audioNameA);
+        this.deleteAudioAndTranscription(audioData.audioNameB);
+      },
+    );
+    this.worker.on('error', (error) => {
+      console.error('Worker error:', error);
+      this.isWorkerBusy = false;
+    });
+    this.worker.on('exit', (code) => {
+      console.log(`${code} - desligou worker, reiniciando...`);
+      this.createWorker();
+    });
   }
 
   private async hasTranscription(cdr: Cdr): Promise<boolean> {
@@ -65,57 +85,35 @@ export class RecognitionService {
 
   private async processUpload(cdr: Cdr) {
     const audioUrl = `${this.IASMIN_PABX_URL}/mp3s/${cdr.callRecord}`;
-    await this.processAudio(cdr.callRecord, audioUrl);
-    await this.notifyTranscriptionToBackend(cdr, '', '', true);
+    //TODO: depois da refatoracao reativar
+    // await this.processAudio(cdr.callRecord, audioUrl);
+    // await this.notifyTranscriptionToBackend(cdr, '', '', true);
   }
 
-  private processAudio(audioName: string, audioUrl: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      axios({
-        method: 'get',
-        url: audioUrl,
-        responseType: 'stream',
-      })
-        .then((request) => {
-          const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
-          request.data.pipe(writer);
+  private downloadAudio(audioData: { cdr: Cdr; audioNameA: string; audioUrlA: string; audioNameB: string; audioUrlB: string; callLeg?: CallLegEnum }) {
+    const audioUrl = audioData.callLeg === CallLegEnum.A ? audioData.audioUrlA : audioData.audioUrlB;
+    const audioName = audioData.callLeg === CallLegEnum.A ? audioData.audioNameA : audioData.audioNameB;
+    axios({
+      method: 'get',
+      url: audioUrl,
+      responseType: 'stream',
+    })
+      .then((request) => {
+        const writer = createWriteStream(`${this.AUDIOS_PATH}/${audioName}`);
+        request.data.pipe(writer);
 
-          writer.on('finish', () => {
-            this.logger.log(`audio baixado ${audioName}`);
-            this.processRecognition(audioName);
-            resolve();
-          });
-
-          writer.on('error', (err) => {
-            this.logger.error(`Erro ao escrever audio no disco ${audioName}`, err.message);
-            reject(err);
-          });
-        })
-        .catch((err) => {
-          this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
-          reject(new RuntimeException('Promise Reject - Erro ao baixar audio'));
+        writer.on('finish', () => {
+          this.logger.log(`audio baixado ${audioName}`);
+          this.worker.postMessage(audioData);
         });
-    });
-  }
 
-  private processRecognition(audioName: string) {
-    const command =
-      this.WHISPER_COMMAND +
-      ' ' +
-      'audios/' +
-      audioName +
-      ' ' +
-      '--model=large ' +
-      '--fp16=False ' +
-      '--language=pt ' +
-      '--beam_size=5 ' +
-      '--patience=2 ' +
-      '--output_format=json ' +
-      `--output_dir=${this.TRANSCRIPTIONS_PATH}`;
-
-    const result = spawnSync(command, { shell: true });
-    if (result.status === 0) this.logger.log(`Transcricao finalizada com sucesso ${audioName}`);
-    else this.logger.error(`Erro na transcricao ${audioName}`);
+        writer.on('error', (err) => {
+          this.logger.error(`Erro ao escrever audio no disco ${audioName}`, err.message);
+        });
+      })
+      .catch((err) => {
+        this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
+      });
   }
 
   private async notifyTranscriptionToBackend(cdr: Cdr, audioNameA: string, audioNameB: string, upload: boolean = false) {

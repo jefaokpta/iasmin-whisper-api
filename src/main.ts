@@ -25,6 +25,10 @@ async function bootstrap() {
       },
       consumer: {
         groupId: 'iasmin-whisper-api-consumer',
+        sessionTimeout: 30000,
+        heartbeatInterval: 3000,
+        // Adicione estas configurações para controlar o polling:
+        maxWaitTimeInMs: 30000, // Aguarda até 30s por novas mensagens
       },
     },
   });
