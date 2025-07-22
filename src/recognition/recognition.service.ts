@@ -53,7 +53,12 @@ export class RecognitionService {
         return;
       }
       this.isWorkerBusy = false;
-      await this.notifyTranscriptionToBackend(audioData.cdr, audioData.audioNameA, audioData.audioNameB, audioData.callLeg === CallLegEnum.BOTH);
+      if (audioData.cdr.userfield === UserfieldEnum.UPLOAD) {
+        await this.notifyTranscriptionToBackend(audioData.cdr, audioData.audioNameA, audioData.audioNameB, true);
+        this.deleteAudioAndTranscription(audioData.uploadName!);
+        return;
+      }
+      await this.notifyTranscriptionToBackend(audioData.cdr, audioData.audioNameA, audioData.audioNameB);
       this.deleteAudioAndTranscription(audioData.audioNameA);
       this.deleteAudioAndTranscription(audioData.audioNameB);
     });
