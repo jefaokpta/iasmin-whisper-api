@@ -2,10 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { createWriteStream, readFileSync, unlink } from 'node:fs';
-import { Cdr } from '../model/cdr';
-import { CallLegEnum, UserfieldEnum } from '../utils/enums';
 import { RuntimeException } from '@nestjs/core/errors/exceptions';
 import { Worker } from 'node:worker_threads';
+import { AudioData, CallLegEnum, Cdr, UserfieldEnum } from '../types';
+import { defineAudioNameAndUrl } from '../utils';
 
 @Injectable()
 export class RecognitionService {
@@ -39,26 +39,24 @@ export class RecognitionService {
     const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
     const audioUrlA = `${this.IASMIN_PABX_URL}/${audioNameA}`;
     const audioUrlB = `${this.IASMIN_PABX_URL}/${audioNameB}`;
-    this.downloadAudio({ cdr, audioNameA, audioUrlA, audioNameB, audioUrlB, callLeg: CallLegEnum.A });
+    const audioData: AudioData = { cdr, audioNameA, audioUrlA, audioNameB, audioUrlB, callLeg: CallLegEnum.A };
+    this.downloadAudio(audioData);
   }
 
   private createWorker() {
     this.worker = new Worker('./dist/workers/transcription.worker.js');
     this.isWorkerBusy = false;
-    this.worker.on(
-      'message',
-      async (audioData: { cdr: Cdr; audioNameA: string; audioUrlA: string; audioNameB: string; audioUrlB: string; callLeg?: CallLegEnum }) => {
-        this.logger.debug(`Transcricao finalizada perna ${audioData.callLeg} ${audioData.cdr.uniqueId}`);
-        if (audioData.callLeg === CallLegEnum.A) {
-          this.downloadAudio({ ...audioData, callLeg: CallLegEnum.B });
-          return;
-        }
-        this.isWorkerBusy = false;
-        await this.notifyTranscriptionToBackend(audioData.cdr, audioData.audioNameA, audioData.audioNameB);
-        this.deleteAudioAndTranscription(audioData.audioNameA);
-        this.deleteAudioAndTranscription(audioData.audioNameB);
-      },
-    );
+    this.worker.on('message', async (audioData: AudioData) => {
+      this.logger.debug(`Transcricao finalizada perna ${audioData.callLeg} ${audioData.cdr.uniqueId}`);
+      if (audioData.callLeg === CallLegEnum.A) {
+        this.downloadAudio({ ...audioData, callLeg: CallLegEnum.B });
+        return;
+      }
+      this.isWorkerBusy = false;
+      await this.notifyTranscriptionToBackend(audioData.cdr, audioData.audioNameA, audioData.audioNameB, audioData.callLeg === CallLegEnum.BOTH);
+      this.deleteAudioAndTranscription(audioData.audioNameA);
+      this.deleteAudioAndTranscription(audioData.audioNameB);
+    });
     this.worker.on('error', (error) => {
       console.error('Worker error:', error);
       this.isWorkerBusy = false;
@@ -85,14 +83,21 @@ export class RecognitionService {
 
   private async processUpload(cdr: Cdr) {
     const audioUrl = `${this.IASMIN_PABX_URL}/mp3s/${cdr.callRecord}`;
-    //TODO: depois da refatoracao reativar
-    // await this.processAudio(cdr.callRecord, audioUrl);
-    // await this.notifyTranscriptionToBackend(cdr, '', '', true);
+    const audioData: AudioData = {
+      cdr,
+      audioNameA: '',
+      audioUrlA: audioUrl,
+      audioNameB: '',
+      audioUrlB: '',
+      uploadName: cdr.callRecord,
+      uploadUrl: audioUrl,
+      callLeg: CallLegEnum.BOTH,
+    };
+    this.downloadAudio(audioData);
   }
 
-  private downloadAudio(audioData: { cdr: Cdr; audioNameA: string; audioUrlA: string; audioNameB: string; audioUrlB: string; callLeg?: CallLegEnum }) {
-    const audioUrl = audioData.callLeg === CallLegEnum.A ? audioData.audioUrlA : audioData.audioUrlB;
-    const audioName = audioData.callLeg === CallLegEnum.A ? audioData.audioNameA : audioData.audioNameB;
+  private downloadAudio(audioData: AudioData) {
+    const { audioName, audioUrl } = defineAudioNameAndUrl(audioData);
     axios({
       method: 'get',
       url: audioUrl,

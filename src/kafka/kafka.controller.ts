@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { RecognitionService } from '../recognition/recognition.service';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { Cdr } from '../model/cdr';
+import { Cdr } from '../types';
 
 @Controller('kafka')
 export class KafkaController {
