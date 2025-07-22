@@ -171,7 +171,7 @@ export class RecognitionService {
         this.logger.error(`Erro ao deletar audio ${audioName}`, err);
       }
     });
-    unlink(this.TRANSCRIPTIONS_PATH + '/' + audioName.replace('.sln', '.json'), (err) => {
+    unlink(this.TRANSCRIPTIONS_PATH + '/' + audioName.replace(/\.(sln|mp3)$/, '.json'), (err) => {
       if (err) {
         this.logger.error(`Erro ao deletar transcrição ${audioName}`, err);
       }
