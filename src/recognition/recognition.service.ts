@@ -26,7 +26,7 @@ export class RecognitionService {
   async jobManager(cdr: Cdr) {
     if (this.isWorkerBusy) {
       this.logger.debug(`Whisper ocupado ${cdr.uniqueId}`);
-      await new Promise((resolve) => setTimeout(resolve, 30_000))
+      await new Promise((resolve) => setTimeout(resolve, 10_000))
       throw new RuntimeException('Whisper ocupado');
     }
     this.isWorkerBusy = true;
