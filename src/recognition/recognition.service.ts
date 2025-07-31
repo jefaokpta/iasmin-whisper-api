@@ -23,9 +23,10 @@ export class RecognitionService {
     this.createWorker();
   }
 
-  jobManager(cdr: Cdr) {
+  async jobManager(cdr: Cdr) {
     if (this.isWorkerBusy) {
       this.logger.debug(`Whisper ocupado ${cdr.uniqueId}`);
+      await new Promise((resolve) => setTimeout(resolve, 30_000))
       throw new RuntimeException('Whisper ocupado');
     }
     this.isWorkerBusy = true;
@@ -123,6 +124,7 @@ export class RecognitionService {
       })
       .catch((err) => {
         this.logger.error(`Erro ao baixar audio ${audioName}`, err.message);
+        this.isWorkerBusy = false;
       });
   }
 
