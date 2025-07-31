@@ -34,7 +34,10 @@ export class RecognitionService {
   }
 
   private async start(cdr: Cdr) {
-    if (await this.hasTranscription(cdr)) return;
+    if (await this.hasTranscription(cdr)) {
+      this.isWorkerBusy = false;
+      return;
+    }
     if (cdr.userfield === UserfieldEnum.UPLOAD) return this.processUpload(cdr);
     const audioNameA = cdr.uniqueId.replace('.', '-').concat('-a.sln');
     const audioNameB = cdr.uniqueId.replace('.', '-').concat('-b.sln');
