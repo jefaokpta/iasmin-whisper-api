@@ -22,7 +22,7 @@ async function main(audioData: AudioData) {
     'audios/' +
     audioName +
     ' ' +
-    '--model=large ' +
+    '--model=turbo ' +
     '--fp16=False ' +
     '--language=pt ' +
     '--beam_size=5 ' +
