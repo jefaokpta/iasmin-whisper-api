@@ -1,0 +1,23 @@
+{
+  "peer": "21",
+  "src": "1154201020",
+  "destination": "1935002560",
+  "callerId": "\"Rogerio Libreti\" <1154201020>",
+  "duration": 11,
+  "billableSeconds": 7,
+  "uniqueId": "1757620718.2770",
+  "disposition": "ANSWERED",
+  "company": "100023",
+  "startTime": "2025-09-11 16:58:38",
+  "callRecord": "1757620718-2770.mp3",
+  "userfield": "OUTBOUND",
+  "title": null,
+  "summary": null,
+  "sentiment": null,
+  "temperature": null,
+  "engagement": null,
+  "mostFrequentWords": null,
+  "action": null,
+  "id": 2934,
+  "status": "ANALYZING"
+}
